@@ -24,8 +24,8 @@ import numpy as np
 class OneHitWonders:
 
     def __init__(self):
-        country_code = 'US'
-        self.__conn = httplib.HTTPSConnection('api.spotify.com')
+        self.__conn         = httplib.HTTPSConnection('api.spotify.com')
+        self.__country_code = 'US'
 
         # if True, will print the top tracks for each artist
         print_all_tracks = True
@@ -51,7 +51,7 @@ class OneHitWonders:
             print '\nArtist: {}'.format(band)
 
             artist_id = self.get_artist_id(band)
-            top_tracks = self.get_top_tracks(artist_id, country_code)
+            top_tracks = self.get_top_tracks(artist_id)
             score = self.calculate_score(top_tracks, print_all_tracks)
 
             print 'One Hit Wonder Score: {0:.0f}'.format(score)
@@ -71,8 +71,8 @@ class OneHitWonders:
         return artist_id
 
 
-    def get_top_tracks(self, artist_id, country_code):
-        results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, country_code))
+    def get_top_tracks(self, artist_id):
+        results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, self.__country_code))
 
         return results['tracks']
 
