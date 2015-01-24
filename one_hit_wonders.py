@@ -25,6 +25,7 @@ class OneHitWonders:
 
     def __init__(self):
         country_code = 'US'
+        self.__conn = httplib.HTTPSConnection('api.spotify.com')
 
         # if True, will print the top tracks for each artist
         print_all_tracks = True
@@ -77,11 +78,9 @@ class OneHitWonders:
 
 
     def query_spotify(self, url):
-        conn = httplib.HTTPSConnection('api.spotify.com')
+        self.__conn.request('GET', url)
 
-        conn.request('GET', url)
-
-        r1 = conn.getresponse()
+        r1 = self.__conn.getresponse()
 
         # if HTML status isn't 200, throw error
         if r1.status != 200:
