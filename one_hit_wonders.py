@@ -24,9 +24,7 @@ class OneHitWonders:
     def __init__(self):
         self.__conn         = httplib.HTTPSConnection('api.spotify.com')
         self.__country_code = 'US'
-
-        # if True, will print the top tracks for each artist
-        print_all_tracks = False
+        self.__print_all_tracks = False # if True, will print the top tracks for each artist
 
         # bands = ['Toni Basil']
         bands = ['Harvey Danger'
@@ -53,7 +51,7 @@ class OneHitWonders:
 
             artist_id = self.get_artist_id(band)
             top_tracks = self.get_top_tracks(artist_id)
-            score, top_track_name = self.calculate_score(top_tracks, print_all_tracks)
+            score, top_track_name = self.calculate_score(top_tracks)
 
             print 'One Hit Wonder Score: {0:.0f}'.format(score)
 
@@ -116,7 +114,7 @@ class OneHitWonders:
         return results
 
 
-    def calculate_score(self, top_tracks, print_all_tracks=False):
+    def calculate_score(self, top_tracks):
         sorted_tracks = sorted(top_tracks, key=lambda x: x['popularity'], reverse=True)
 
         top_track_name = sorted_tracks[0]['name']
@@ -124,16 +122,16 @@ class OneHitWonders:
         top_tracks_popularity = [sorted_tracks[0]['popularity']]
 
         for i, track in enumerate(sorted_tracks):
-            if print_all_tracks:
+            if self.__print_all_tracks:
                 print '{0}. ({1}) {2}'.format(i+1, track['popularity'], track['name'])
 
             if i != 0:
                 if top_track_name not in track['name']:
                     top_tracks_popularity.append(track['popularity'])
-                elif print_all_tracks:
+                elif self.__print_all_tracks:
                     print '^^^^^^^ duplicate of top hit, will exclude'
 
-        if not print_all_tracks:
+        if not self.__print_all_tracks:
             print 'Top Hit: {}'.format(sorted_tracks[0]['name'])
 
         score = top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
