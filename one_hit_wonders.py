@@ -1,12 +1,8 @@
 #!/usr/bin/env python
 
-
 import httplib
-import sys
-from BeautifulSoup import BeautifulSoup
 import os
 import datetime
-import re
 import json
 import numpy as np
 import pandas as pd
@@ -71,7 +67,6 @@ class OneHitWonders:
 
             df = df.append(data_row)
 
-
         df = df.sort(columns='OHW Score', ascending=False)
 
         self.save_dataframe(df, 'ohw score')
@@ -110,7 +105,6 @@ class OneHitWonders:
         body = r1.read()
 
         if body[0:6] == '<html>':
-
             parsed_html = BeautifulSoup(body)
             html_error = parsed_html.body.find('h1').text
 
@@ -139,7 +133,6 @@ class OneHitWonders:
                 elif print_all_tracks:
                     print '^^^^^^^ duplicate of top hit, will exclude'
 
-
         if not print_all_tracks:
             print 'Top Hit: {}'.format(sorted_tracks[0]['name'])
 
@@ -149,7 +142,6 @@ class OneHitWonders:
 
 
     def save_dataframe(self, df, prefix='output'):
-
         output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
 
         # if output directory doesn't exist, make it
@@ -163,6 +155,5 @@ class OneHitWonders:
         print 'DataFrame saved to: {}'.format(output_file)
 
         return None
-
 
 OneHitWonders()
