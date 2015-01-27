@@ -19,155 +19,139 @@ import pandas as pd
 # handle Spotify API errors more gracefully
 # store score to dataframe, export to CSV
 
-def main():
+class OneHitWonders:
 
-    country_code = 'US'
+    def __init__(self):
+        self.__conn         = httplib.HTTPSConnection('api.spotify.com')
+        self.__country_code = 'US'
+        self.__print_all_tracks = False # if True, will print the top tracks for each artist
 
-    # if True, will print the top tracks for each artist
-    print_all_tracks = False
+        # bands = ['Toni Basil']
+        bands = ['Harvey Danger'
+            # , 'Radiohead'
+            # , 'Lou Bega'
+            # , 'Gotye'
+            , 'Toni Basil'
+            # , 'Belle & Sebastian'
+            # , 'Vanilla Ice'
+            # , 'Devo'
+            # , 'Patrick Swayze'
+            # , 'B*Witched'
+            # , 'Macy Gray'
+            # , 'The Monroes'
+            # , 'HTRK'
+            # , 'Dexys Midnight Runners'
+            ]
 
-    # bands = ['Toni Basil']
-    bands = ['Harvey Danger'
-        # , 'Radiohead'
-        # , 'Lou Bega'
-        # , 'Gotye'
-        , 'Toni Basil'
-        # , 'Belle & Sebastian'
-        # , 'Vanilla Ice'
-        # , 'Devo'
-        # , 'Patrick Swayze'
-        # , 'B*Witched'
-        # , 'Macy Gray'
-        # , 'The Monroes'
-        # , 'HTRK'
-        # , 'Dexys Midnight Runners'
-        ]
+        df = pd.DataFrame()
 
-    df = pd.DataFrame()
+        for i, band in enumerate(bands):
 
-    for i, band in enumerate(bands):
+            print '\nArtist: {}'.format(band)
 
-        print '\nArtist: {}'.format(band)
+            artist_id = self.get_artist_id(band)
+            top_tracks = self.get_top_tracks(artist_id)
+            score, top_track_name = self.calculate_score(top_tracks)
 
-        artist_id = get_artist_id(band)
+            print 'One Hit Wonder Score: {0:.0f}'.format(score)
 
-        top_tracks = get_top_tracks(artist_id, country_code)
+            data_row = pd.DataFrame({
+                "Artist": band,
+                "Top Track": top_track_name,
+                "OHW Score": score
+            }, index=[i])
 
-        score, top_track_name = calculate_score(top_tracks, print_all_tracks)
+            # print data_row
 
-        print 'One Hit Wonder Score: {0:.0f}'.format(score)
+            df = df.append(data_row)
 
-        data_row = pd.DataFrame({
-            "Artist": band,
-            "Top Track": top_track_name,
-            "OHW Score": score
-        }, index=[i])
+        df = df.sort(columns='OHW Score', ascending=False)
 
-        # print data_row
+        self.save_dataframe(df, 'ohw score')
 
-        df = df.append(data_row)
-
-
-    df = df.sort(columns='OHW Score', ascending=False)
-
-    save_dataframe(df, 'ohw score')
-
-    return None
+        return None
 
 
+    def get_artist_id(self, artist_name):
+        artist_name_url = artist_name.lower().replace(' ','%20')
+
+        results = self.query_spotify("/v1/search?q={}&type=artist".format(artist_name_url))
+
+        # at some point, confirm that we got exactly 1 result
+
+        artist_id = results['artists']['items'][0]['id']
+
+        return artist_id
 
 
-def get_artist_id(artist_name):
+    def get_top_tracks(self, artist_id):
+        results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, self.__country_code))
 
-    artist_name_url = artist_name.lower().replace(' ','%20')
-
-    results = query_spotify("/v1/search?q={}&type=artist".format(artist_name_url))
-
-    # at some point, confirm that we got exactly 1 result
-
-    artist_id = results['artists']['items'][0]['id']
-
-    return artist_id
+        return results['tracks']
 
 
-def get_top_tracks(artist_id, country_code):
+    def query_spotify(self, url):
+        self.__conn.request('GET', url)
 
-    results = query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, country_code))
+        r1 = self.__conn.getresponse()
 
-    return results['tracks']
+        # if HTML status isn't 200, throw error
+        if r1.status != 200:
+            error_str = 'Bad HTML status from Spotify: {0} {1}'.format(r1.status, r1.reason)
+            raise RuntimeError(error_str)
 
+        body = r1.read()
 
-def query_spotify(url):
+        if body[0:6] == '<html>':
+            parsed_html = BeautifulSoup(body)
+            html_error = parsed_html.body.find('h1').text
 
-    conn = httplib.HTTPSConnection('api.spotify.com')
+            error_str = 'Bad API response from Spotify ({}), probably an error in the API query.'.format(html_error)
+            raise RuntimeError(error_str)
 
-    conn.request('GET', url)
+        results = json.loads(body)
 
-    r1 = conn.getresponse()
-
-    # if HTML status isn't 200, throw error
-    if r1.status != 200:
-        error_str = 'Bad HTML status from Spotify: {0} {1}'.format(r1.status, r1.reason)
-        raise RuntimeError(error_str)
-
-    body = r1.read()
-
-    if body[0:6] == '<html>':
-
-        parsed_html = BeautifulSoup(body)
-        html_error = parsed_html.body.find('h1').text
-
-        error_str = 'Bad API response from Spotify ({}), probably an error in the API query.'.format(html_error)
-        raise RuntimeError(error_str)
-
-    results = json.loads(body)
-
-    return results
+        return results
 
 
-def calculate_score(top_tracks, print_all_tracks=False):
+    def calculate_score(self, top_tracks):
+        sorted_tracks = sorted(top_tracks, key=lambda x: x['popularity'], reverse=True)
 
-    sorted_tracks = sorted(top_tracks, key=lambda x: x['popularity'], reverse=True)
+        top_track_name = sorted_tracks[0]['name']
 
-    top_track_name = sorted_tracks[0]['name']
+        top_tracks_popularity = [sorted_tracks[0]['popularity']]
 
-    top_tracks_popularity = [sorted_tracks[0]['popularity']]
+        for i, track in enumerate(sorted_tracks):
+            if self.__print_all_tracks:
+                print '{0}. ({1}) {2}'.format(i+1, track['popularity'], track['name'])
 
-    for i, track in enumerate(sorted_tracks):
-        if print_all_tracks:
-            print '{0}. ({1}) {2}'.format(i+1, track['popularity'], track['name'])
+            if i != 0:
+                if top_track_name not in track['name']:
+                    top_tracks_popularity.append(track['popularity'])
+                elif self.__print_all_tracks:
+                    print '^^^^^^^ duplicate of top hit, will exclude'
 
-        if i != 0:
-            if top_track_name not in track['name']:
-                top_tracks_popularity.append(track['popularity'])
-            elif print_all_tracks:
-                print '^^^^^^^ duplicate of top hit, will exclude'
+        if not self.__print_all_tracks:
+            print 'Top Hit: {}'.format(sorted_tracks[0]['name'])
 
+        score = top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
 
-    if not print_all_tracks:
-        print 'Top Hit: {}'.format(sorted_tracks[0]['name'])
-
-    score = top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
-
-    return score, top_track_name
+        return score, top_track_name
 
 
-def save_dataframe(df, prefix='output'):
+    def save_dataframe(self, df, prefix='output'):
+        output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
 
-    output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
+        # if output directory doesn't exist, make it
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
 
-    # if output directory doesn't exist, make it
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+        output_file = '{0}/{1} {2}.csv'.format(output_dir, prefix, datetime.datetime.now().strftime("%Y-%m-%d %H,%M,%S"))
 
-    output_file = '{0}/{1} {2}.csv'.format(output_dir, prefix, datetime.datetime.now().strftime("%Y-%m-%d %H,%M,%S"))
+        df.to_csv(output_file)
 
-    df.to_csv(output_file)
+        print 'DataFrame saved to: {}'.format(output_file)
 
-    print 'DataFrame saved to: {}'.format(output_file)
+        return None
 
-    return None
-
-
-if __name__ == '__main__':
-    main()
+OneHitWonders()
