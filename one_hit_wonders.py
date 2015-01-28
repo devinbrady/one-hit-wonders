@@ -100,16 +100,7 @@ class OneHitWonders:
             error_str = 'Bad HTML status from Spotify: {0} {1}'.format(r1.status, r1.reason)
             raise RuntimeError(error_str)
 
-        body = r1.read()
-
-        if body[0:6] == '<html>':
-            parsed_html = BeautifulSoup(body)
-            html_error = parsed_html.body.find('h1').text
-
-            error_str = 'Bad API response from Spotify ({}), probably an error in the API query.'.format(html_error)
-            raise RuntimeError(error_str)
-
-        results = json.loads(body)
+        results = json.loads(r1.read())
 
         return results
 
