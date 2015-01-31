@@ -6,6 +6,8 @@ import datetime
 import json
 import numpy as np
 import pandas as pd
+from sqlobject import *
+from artist_score import ArtistScore
 
 
 # todo:
@@ -129,6 +131,19 @@ class OneHitWonders:
         score = top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
 
         return score, top_track_name
+
+    def setup_db(self):
+        db_filename = os.path.abspath('ohw.db')
+        if os.path.exists(db_filename):
+            os.unlink(db_filename)
+        connection_string = 'sqlite:' + db_filename
+        connection = connectionForURI(connection_string)
+        sqlhub.processConnection = connection
+
+        try:
+            ArtistScore.createTable()
+        except dberrors.OperationalError:
+            print 'ArtistScore table exists.'
 
 
     def save_dataframe(self, df, prefix='output'):
