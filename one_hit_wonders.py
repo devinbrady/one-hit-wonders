@@ -26,6 +26,7 @@ class OneHitWonders:
         self.__country_code = 'US'
         self.__print_all_tracks = False # if True, will print the top tracks for each artist
 
+    def rank_artists(self):
         # bands = ['Toni Basil']
         bands = ['Harvey Danger'
             # , 'Radiohead'
@@ -145,4 +146,6 @@ class OneHitWonders:
 
         return None
 
-OneHitWonders()
+if __name__ == '__main__':
+    ohw = OneHitWonders()
+    ohw.rank_artists()
