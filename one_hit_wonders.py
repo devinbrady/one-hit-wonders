@@ -24,9 +24,11 @@ from artist_score import ArtistScore
 class OneHitWonders:
 
     def __init__(self):
-        self.__conn         = httplib.HTTPSConnection('api.spotify.com')
-        self.__country_code = 'US'
+        self.__conn             = httplib.HTTPSConnection('api.spotify.com')
+        self.__country_code     = 'US'
         self.__print_all_tracks = False # if True, will print the top tracks for each artist
+
+        self.setup_db()
 
     def rank_artists(self):
         # bands = ['Toni Basil']
@@ -46,8 +48,6 @@ class OneHitWonders:
             # , 'Dexys Midnight Runners'
             ]
 
-        df = pd.DataFrame()
-
         for i, band in enumerate(bands):
 
             print '\nArtist: {}'.format(band)
@@ -58,19 +58,7 @@ class OneHitWonders:
 
             print 'One Hit Wonder Score: {0:.0f}'.format(score)
 
-            data_row = pd.DataFrame({
-                "Artist": band,
-                "Top Track": top_track_name,
-                "OHW Score": score
-            }, index=[i])
-
-            # print data_row
-
-            df = df.append(data_row)
-
-        df = df.sort(columns='OHW Score', ascending=False)
-
-        self.save_dataframe(df, 'ohw score')
+            ArtistScore(artist=band, track=top_track_name, score=score)
 
         return None
 
