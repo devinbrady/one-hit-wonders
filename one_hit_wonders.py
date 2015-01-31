@@ -134,7 +134,7 @@ class OneHitWonders:
             print 'ArtistScore table exists.'
 
 
-    def save_dataframe(self, df, prefix='output'):
+    def save_top_ohws(self, prefix='output'):
         output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
 
         # if output directory doesn't exist, make it
@@ -142,13 +142,20 @@ class OneHitWonders:
             os.makedirs(output_dir)
 
         output_file = '{0}/{1} {2}.csv'.format(output_dir, prefix, datetime.datetime.now().strftime("%Y-%m-%d %H,%M,%S"))
+        f = open(output_file, 'w')
 
-        df.to_csv(output_file)
+        artist_scores = ArtistScore.select('all', orderBy='score desc', limit=10)
 
-        print 'DataFrame saved to: {}'.format(output_file)
+        for artist_score in artist_scores:
+            output = '{0},{1},{2}'.format(artist_score.artist, artist_score.track, artist_score.score)
+            # print output
+            f.write('{0}\n'.format(output))
+
+        print 'Top One Hit Wonders saved to: {}'.format(output_file)
 
         return None
 
 if __name__ == '__main__':
     ohw = OneHitWonders()
     ohw.rank_artists()
+    ohw.save_top_ohws()
