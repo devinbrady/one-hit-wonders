@@ -55,3 +55,6 @@ target/
 
 # Output CSV files
 csv/
+
+# SQLite db
+ohw.db

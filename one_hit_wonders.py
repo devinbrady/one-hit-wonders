@@ -5,7 +5,8 @@ import os
 import datetime
 import json
 import numpy as np
-import pandas as pd
+from sqlobject import *
+from artist_score import ArtistScore
 
 
 # todo:
@@ -22,10 +23,13 @@ import pandas as pd
 class OneHitWonders:
 
     def __init__(self):
-        self.__conn         = httplib.HTTPSConnection('api.spotify.com')
-        self.__country_code = 'US'
+        self.__conn             = httplib.HTTPSConnection('api.spotify.com')
+        self.__country_code     = 'US'
         self.__print_all_tracks = False # if True, will print the top tracks for each artist
 
+        self.setup_db()
+
+    def rank_artists(self):
         # bands = ['Toni Basil']
         bands = ['Harvey Danger'
             # , 'Radiohead'
@@ -43,31 +47,17 @@ class OneHitWonders:
             # , 'Dexys Midnight Runners'
             ]
 
-        df = pd.DataFrame()
-
         for i, band in enumerate(bands):
+            if ArtistScore.selectBy(artist=band).count() == 0:
+                print '\nArtist: {}'.format(band)
 
-            print '\nArtist: {}'.format(band)
+                artist_id = self.get_artist_id(band)
+                top_tracks = self.get_top_tracks(artist_id)
+                score, top_track_name = self.calculate_score(top_tracks)
 
-            artist_id = self.get_artist_id(band)
-            top_tracks = self.get_top_tracks(artist_id)
-            score, top_track_name = self.calculate_score(top_tracks)
+                print 'One Hit Wonder Score: {0:.0f}'.format(score)
 
-            print 'One Hit Wonder Score: {0:.0f}'.format(score)
-
-            data_row = pd.DataFrame({
-                "Artist": band,
-                "Top Track": top_track_name,
-                "OHW Score": score
-            }, index=[i])
-
-            # print data_row
-
-            df = df.append(data_row)
-
-        df = df.sort(columns='OHW Score', ascending=False)
-
-        self.save_dataframe(df, 'ohw score')
+                ArtistScore(artist=band, track=top_track_name, score=score)
 
         return None
 
@@ -129,8 +119,21 @@ class OneHitWonders:
 
         return score, top_track_name
 
+    def setup_db(self):
+        db_filename = os.path.abspath('ohw.db')
+        if os.path.exists(db_filename):
+            os.unlink(db_filename)
+        connection_string = 'sqlite:' + db_filename
+        connection = connectionForURI(connection_string)
+        sqlhub.processConnection = connection
 
-    def save_dataframe(self, df, prefix='output'):
+        try:
+            ArtistScore.createTable()
+        except dberrors.OperationalError:
+            print 'ArtistScore table exists.'
+
+
+    def save_top_ohws(self, prefix='output'):
         output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
 
         # if output directory doesn't exist, make it
@@ -138,11 +141,20 @@ class OneHitWonders:
             os.makedirs(output_dir)
 
         output_file = '{0}/{1} {2}.csv'.format(output_dir, prefix, datetime.datetime.now().strftime("%Y-%m-%d %H,%M,%S"))
+        f = open(output_file, 'w')
 
-        df.to_csv(output_file)
+        artist_scores = ArtistScore.select('all', orderBy='score desc', limit=10)
 
-        print 'DataFrame saved to: {}'.format(output_file)
+        for artist_score in artist_scores:
+            output = '{0},{1},{2}'.format(artist_score.artist, artist_score.track, artist_score.score)
+            # print output
+            f.write('{0}\n'.format(output))
+
+        print 'Top One Hit Wonders saved to: {}'.format(output_file)
 
         return None
 
-OneHitWonders()
+if __name__ == '__main__':
+    ohw = OneHitWonders()
+    ohw.rank_artists()
+    ohw.save_top_ohws()
