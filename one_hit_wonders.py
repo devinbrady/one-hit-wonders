@@ -48,16 +48,16 @@ class OneHitWonders:
             ]
 
         for i, band in enumerate(bands):
+            if ArtistScore.selectBy(artist=band).count() == 0:
+                print '\nArtist: {}'.format(band)
 
-            print '\nArtist: {}'.format(band)
+                artist_id = self.get_artist_id(band)
+                top_tracks = self.get_top_tracks(artist_id)
+                score, top_track_name = self.calculate_score(top_tracks)
 
-            artist_id = self.get_artist_id(band)
-            top_tracks = self.get_top_tracks(artist_id)
-            score, top_track_name = self.calculate_score(top_tracks)
+                print 'One Hit Wonder Score: {0:.0f}'.format(score)
 
-            print 'One Hit Wonder Score: {0:.0f}'.format(score)
-
-            ArtistScore(artist=band, track=top_track_name, score=score)
+                ArtistScore(artist=band, track=top_track_name, score=score)
 
         return None
 
