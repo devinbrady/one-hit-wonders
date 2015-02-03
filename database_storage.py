@@ -1,4 +1,5 @@
 import os
+import psycopg2
 from artist_score import ArtistScore
 from sqlobject import *
 
