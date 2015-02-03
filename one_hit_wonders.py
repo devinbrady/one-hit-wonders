@@ -5,7 +5,7 @@ import os
 import datetime
 import json
 import numpy as np
-from sqlobject import *
+import database_storage
 from artist_score import ArtistScore
 
 
@@ -27,7 +27,7 @@ class OneHitWonders:
         self.__country_code     = 'US'
         self.__print_all_tracks = False # if True, will print the top tracks for each artist
 
-        self.setup_db()
+        database_storage.setup()
 
     def rank_artists(self):
         # bands = ['Toni Basil']
@@ -118,20 +118,6 @@ class OneHitWonders:
         score = top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
 
         return score, top_track_name
-
-    def setup_db(self):
-        db_filename = os.path.abspath('ohw.db')
-        if os.path.exists(db_filename):
-            os.unlink(db_filename)
-        connection_string = 'sqlite:' + db_filename
-        connection = connectionForURI(connection_string)
-        sqlhub.processConnection = connection
-
-        try:
-            ArtistScore.createTable()
-        except dberrors.OperationalError:
-            print 'ArtistScore table exists.'
-
 
     def save_top_ohws(self, prefix='output'):
         output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
