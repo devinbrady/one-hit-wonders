@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import httplib
-import os
 import datetime
 import json
 import numpy as np
@@ -49,13 +48,13 @@ class OneHitWonders:
 
         for i, band in enumerate(bands):
             if ArtistScore.selectBy(artist=band).count() == 0:
-                print '\nArtist: {}'.format(band)
+                # print '\nArtist: {}'.format(band)
 
                 artist_id = self.get_artist_id(band)
                 top_tracks = self.get_top_tracks(artist_id)
                 score, top_track_name = self.calculate_score(top_tracks)
 
-                print 'One Hit Wonder Score: {0:.0f}'.format(score)
+                # print 'One Hit Wonder Score: {0:.0f}'.format(score)
 
                 ArtistScore(artist=band, track=top_track_name, score=score)
 
@@ -112,35 +111,22 @@ class OneHitWonders:
                 elif self.__print_all_tracks:
                     print '^^^^^^^ duplicate of top hit, will exclude'
 
-        if not self.__print_all_tracks:
-            print 'Top Hit: {}'.format(sorted_tracks[0]['name'])
+        # if not self.__print_all_tracks:
+        #     print 'Top Hit: {}'.format(sorted_tracks[0]['name'])
 
         score = top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
 
         return score, top_track_name
 
-    def save_top_ohws(self, prefix='output'):
-        output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
-
-        # if output directory doesn't exist, make it
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        output_file = '{0}/{1} {2}.csv'.format(output_dir, prefix, datetime.datetime.now().strftime("%Y-%m-%d %H,%M,%S"))
-        f = open(output_file, 'w')
-
+    def get_top_ohws(self):
         artist_scores = ArtistScore.select('all', orderBy='score desc', limit=10)
 
         for artist_score in artist_scores:
-            output = '{0},{1},{2}'.format(artist_score.artist, artist_score.track, artist_score.score)
-            # print output
-            f.write('{0}\n'.format(output))
-
-        print 'Top One Hit Wonders saved to: {}'.format(output_file)
+            print '{0},{1},{2}'.format(artist_score.artist, artist_score.track, artist_score.score)
 
         return None
 
 if __name__ == '__main__':
     ohw = OneHitWonders()
     ohw.rank_artists()
-    ohw.save_top_ohws()
+    ohw.get_top_ohws()
