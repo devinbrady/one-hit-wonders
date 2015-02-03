@@ -50,33 +50,52 @@ class OneHitWonders:
             if ArtistScore.selectBy(artist=band).count() == 0:
                 # print '\nArtist: {}'.format(band)
 
-                artist_id = self.get_artist_id(band)
-                top_tracks = self.get_top_tracks(artist_id)
-                score, top_track_name = self.calculate_score(top_tracks)
+                artist_id, artist_popularity = self.get_artist_info(band)
+                top_tracks = self.get_top_tracks(artist_id) # [{'popularity': 61, 'id': u'7cz70nyRXlCJOE85whEkgU', 'name': u'Flagpole Sitta'},...]
+                score = self.calculate_score(top_tracks)
 
                 # print 'One Hit Wonder Score: {0:.0f}'.format(score)
 
-                ArtistScore(artist=band, track=top_track_name, score=score)
+                ArtistScore(artist=band
+                , track=top_tracks[0]['name']
+                , score=score
+                , artist_id=artist_id
+                , artist_popularity=artist_popularity
+                , top_track_id=top_tracks[0]['id']
+                , popularity_scores=",".join([str(track['popularity']) for track in top_tracks])
+                )
 
         return None
 
 
-    def get_artist_id(self, artist_name):
+    def get_artist_info(self, artist_name):
         artist_name_url = artist_name.lower().replace(' ','%20')
 
         results = self.query_spotify("/v1/search?q={}&type=artist".format(artist_name_url))
 
         # at some point, confirm that we got exactly 1 result
+        artist = results['artists']['items'][0]
 
-        artist_id = results['artists']['items'][0]['id']
+        artist_id = artist['id']
+        artist_popularity = artist['popularity']
 
-        return artist_id
+        return artist_id, artist_popularity
 
-
+    # Gets relevant info about top tracks, sorts by popularity,
+    # and removes duplicate tracks before returning.
     def get_top_tracks(self, artist_id):
-        results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, self.__country_code))
+        results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, self.__country_code))['tracks']
 
-        return results['tracks']
+        relevant_info  = lambda track: {'popularity':track['popularity'], 'id':track['id'], 'name':track['name']}
+        tracks_info    = [relevant_info(track) for track in results]
+
+        sorted_tracks  = sorted(tracks_info, key=lambda x: x['popularity'], reverse=True)
+
+        top_track      = sorted_tracks[0]
+        is_duplicate   = lambda track: top_track['id'] != track['id'] and top_track['name'] in track['name']
+        unique_tracks  = [track for track in sorted_tracks if not is_duplicate(track)]
+
+        return unique_tracks
 
 
     def query_spotify(self, url):
@@ -95,28 +114,9 @@ class OneHitWonders:
 
 
     def calculate_score(self, top_tracks):
-        sorted_tracks = sorted(top_tracks, key=lambda x: x['popularity'], reverse=True)
+        top_tracks_popularity = [track['popularity'] for track in top_tracks]
+        return top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
 
-        top_track_name = sorted_tracks[0]['name']
-
-        top_tracks_popularity = [sorted_tracks[0]['popularity']]
-
-        for i, track in enumerate(sorted_tracks):
-            if self.__print_all_tracks:
-                print '{0}. ({1}) {2}'.format(i+1, track['popularity'], track['name'])
-
-            if i != 0:
-                if top_track_name not in track['name']:
-                    top_tracks_popularity.append(track['popularity'])
-                elif self.__print_all_tracks:
-                    print '^^^^^^^ duplicate of top hit, will exclude'
-
-        # if not self.__print_all_tracks:
-        #     print 'Top Hit: {}'.format(sorted_tracks[0]['name'])
-
-        score = top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
-
-        return score, top_track_name
 
     def get_top_ohws(self):
         artist_scores = ArtistScore.select('all', orderBy='score desc', limit=10)
