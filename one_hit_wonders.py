@@ -55,12 +55,12 @@ class OneHitWonders:
 
 
     def calculate_and_store(self, artist):
-        if ArtistScore.selectBy(artist_id=artist["id"]).count() == 0: return None
+        if ArtistScore.selectBy(artist_id=artist["id"]).count() != 0: return None
 
         top_tracks = self.get_top_tracks(artist["id"]) # [{'popularity': 61, 'id': u'7cz70nyRXlCJOE85whEkgU', 'name': u'Flagpole Sitta'},...]
         score = self.calculate_score(top_tracks)
 
-        # print 'One Hit Wonder Score: {0:.0f}'.format(score)
+        print artist["name"] + ' One Hit Wonder Score: {0:.0f}'.format(score)
 
         artist_score = ArtistScore(artist=artist["name"]
         , track=top_tracks[0]['name']
@@ -70,6 +70,7 @@ class OneHitWonders:
         , top_track_id=top_tracks[0]['id']
         , popularity_scores=",".join([str(track['popularity']) for track in top_tracks])
         )
+
         print artist_score
 
 
