@@ -64,6 +64,8 @@ class OneHitWonders:
 
             # print artist["name"] + ' One Hit Wonder Score: {0:.0f}'.format(score)
 
+            # UnicodeEncodeError: 'ascii' codec can't encode character u'\xf3' in position 5: ordinal not in range(128)
+
             artist_score = ArtistScore(artist=artist["name"]
             , track=top_tracks[0]['name']
             , score=score
@@ -98,7 +100,7 @@ class OneHitWonders:
     def get_top_tracks(self, artist_id):
         results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, self.__country_code))['tracks']
 
-        if len(results) > 0:
+        if len(results) > 1:
             relevant_info  = lambda track: {'popularity':track['popularity'], 'id':track['id'], 'name':track['name']}
             tracks_info    = [relevant_info(track) for track in results]
 
@@ -108,7 +110,7 @@ class OneHitWonders:
             is_duplicate   = lambda track: top_track['id'] != track['id'] and top_track['name'] in track['name']
             unique_tracks  = [track for track in sorted_tracks if not is_duplicate(track)]
 
-            return unique_tracks
+            if len(unique_tracks) > 1 return unique_tracks
 
 
     def query_spotify(self, url):
