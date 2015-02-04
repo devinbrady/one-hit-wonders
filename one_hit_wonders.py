@@ -3,7 +3,9 @@
 import httplib
 import datetime
 import json
+import os
 import numpy as np
+import pandas as pd
 import database_storage
 from random import randint
 from artist_score import ArtistScore
@@ -29,33 +31,19 @@ class OneHitWonders:
 
         database_storage.setup()
 
-    def rank_artists(self):
-        # bands = ['Toni Basil']
-        bands = ['Harvey Danger'
-            # , 'Radiohead'
-            # , 'Lou Bega'
-            # , 'Gotye'
-            , 'Toni Basil'
-            # , 'Belle & Sebastian'
-            # , 'Vanilla Ice'
-            # , 'Devo'
-            # , 'Patrick Swayze'
-            # , 'B*Witched'
-            # , 'Macy Gray'
-            # , 'The Monroes'
-            # , 'HTRK'
-            # , 'Dexys Midnight Runners'
-            ]
 
-        for i, band in enumerate(bands):
-            # print '\nArtist: {}'.format(band)
-            self.calculate_and_store(self.get_artist(band))
+    def rank_artists(self):
+        
+        artists = self.load_artists_from_file()
+
+        for artist in artists:
+            self.calculate_and_store(self.get_artist(artist))
 
         return None
 
 
     def calculate_and_store(self, artist, random=True):
-        if ArtistScore.selectBy(artist_id=artist["id"]).count() != 0: return None
+        if artist is None or ArtistScore.selectBy(artist_id=artist["id"]).count() > 0: return None
 
         top_tracks = self.get_top_tracks(artist["id"]) # [{'popularity': 61, 'id': u'7cz70nyRXlCJOE85whEkgU', 'name': u'Flagpole Sitta'},...]
 
@@ -77,14 +65,20 @@ class OneHitWonders:
             )
 
 
+    def load_artists_from_file(self):
+        wikipedia = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/One Hit Wonders (Wikipedia).csv')
+        artists = wikipedia['Artist']
+
+        return artists
+
+
     def get_artist(self, artist_name):
         artist_name_url = artist_name.lower().replace(' ','%20')
 
         results = self.query_spotify("/v1/search?q={}&type=artist".format(artist_name_url))
 
-        # at some point, confirm that we got exactly 1 result
+        return results['artists']['items'][0] if results['artists']['total'] > 0 else None
 
-        return results['artists']['items'][0]
 
     def random_artist(self):
         base_query = "/v1/search?q=year%3A0000-9999&type=artist&market=" + self.__country_code
