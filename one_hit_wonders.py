@@ -31,21 +31,29 @@ class OneHitWonders:
 
     def rank_artists(self):
         # bands = ['Toni Basil']
-        bands = ['Harvey Danger'
-            # , 'Radiohead'
-            # , 'Lou Bega'
-            # , 'Gotye'
-            , 'Toni Basil'
-            # , 'Belle & Sebastian'
-            # , 'Vanilla Ice'
-            # , 'Devo'
-            # , 'Patrick Swayze'
-            # , 'B*Witched'
-            # , 'Macy Gray'
-            # , 'The Monroes'
-            # , 'HTRK'
-            # , 'Dexys Midnight Runners'
-            ]
+        # bands = ['Harvey Danger'
+        #     , 'Radiohead'
+        #     , 'Lou Bega'
+        #     # , 'Gotye'
+        #     , 'Toni Basil'
+        #     , 'Belle & Sebastian'
+        #     , 'Vanilla Ice'
+        #     , 'Devo'
+        #     , 'Patrick Swayze'
+        #     , 'B*Witched'
+        #     , 'Macy Gray'
+        #     , 'The Monroes'
+        #     , 'HTRK'
+        #     , 'Dexys Midnight Runners'
+        #     , 'Primitive Radio Gods'
+        #     # , 'Los Del Rio'
+        #     ]
+
+        wikipedia = self.load_data('One Hit Wonders (sample) - Sheet1.csv')
+        bands = wikipedia['Artist']
+
+        # ohw_playlists = self.get_playlists('One Hit Wonders')
+        # bands = self.get_playlist_artists('spotifybrazilian', '2wUnnQjLQsbl90brPUNFFx')
 
         for i, band in enumerate(bands):
             if ArtistScore.selectBy(artist=band).count() == 0:
@@ -62,14 +70,38 @@ class OneHitWonders:
         return None
 
 
+    def get_playlists(self, search_string):
+
+        search_string_encoded = search_string.lower().replace(' ','%20')
+
+        results = self.query_spotify("/v1/search?q={}&type=playlist".format(search_string_encoded))
+
+        print results
+
+        playlist_ids = ['1']
+
+        return playlist_ids
+
+    def get_playlist_artists(self, user_id, playlist_id):
+
+        results = self.query_spotify("/v1/users/{user_id}/playlists/{playlist_id}/tracks".format(user_id=user_id, playlist_id=playlist_id))
+        
+        print results
+        
+        playlist_artists = ['Harvey Danger']
+
+        return playlist_artists
+
     def get_artist_id(self, artist_name):
         artist_name_url = artist_name.lower().replace(' ','%20')
 
         results = self.query_spotify("/v1/search?q={}&type=artist".format(artist_name_url))
 
-        # at some point, confirm that we got exactly 1 result
-
-        artist_id = results['artists']['items'][0]['id']
+        if results['artists']['total'] == 0:
+            print 'WARNING: zero search results for: {}'.format(artist_name)
+            artist_id = 0
+        else: 
+            artist_id = results['artists']['items'][0]['id']
 
         return artist_id
 
@@ -132,6 +164,38 @@ class OneHitWonders:
         except dberrors.OperationalError:
             print 'ArtistScore table exists.'
 
+    def load_data(self, data_file):
+        """
+        Load a data file into a dataframe
+        """
+
+        if data_file[0] == '/':
+            # assume data_file is full path
+            data_path = data_file
+        else: 
+            # assume data file is in the same directory as this script
+            project_path = os.path.dirname(os.path.realpath(__file__))
+            data_path = project_path + '/' + data_file
+
+        # verify that file exists
+        if not os.path.isfile(data_path):
+            sys.exit('File does not exist: ' + data_path)
+
+        print '\nLoading file: ' + data_file
+
+        fileName, fileExtension = os.path.splitext(data_path)
+        if any(fileExtension == s for s in ['.txt','.tsv']):
+            data = pd.read_table(data_path)
+        elif fileExtension == '.csv':
+            data = pd.read_csv(data_path)
+        else: 
+            raise RuntimeError('Data file has unknown file extension: {}'.format(fileExtension))
+
+        print 'Rows: {}'.format(len(data))
+        print 'Columns: {}'.format(data.columns.values)
+        # print data.head()
+
+        return data
 
     def save_top_ohws(self, prefix='output'):
         output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
