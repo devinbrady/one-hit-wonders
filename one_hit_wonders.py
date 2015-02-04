@@ -36,14 +36,14 @@ class OneHitWonders:
         
         artists = self.load_artists_from_file()
 
-        for band in artists:
-            self.calculate_and_store(self.get_artist(band))
+        for artist in artists:
+            self.calculate_and_store(self.get_artist(artist))
 
         return None
 
 
     def calculate_and_store(self, artist, random=True):
-        if not artist or ArtistScore.selectBy(artist_id=artist["id"]).count() != 0: return None
+        if artist is None or ArtistScore.selectBy(artist_id=artist["id"]).count() > 0: return None
 
         top_tracks = self.get_top_tracks(artist["id"]) # [{'popularity': 61, 'id': u'7cz70nyRXlCJOE85whEkgU', 'name': u'Flagpole Sitta'},...]
 
