@@ -5,6 +5,7 @@ import datetime
 import json
 import numpy as np
 import database_storage
+from random import randint
 from artist_score import ArtistScore
 
 
@@ -47,39 +48,47 @@ class OneHitWonders:
             ]
 
         for i, band in enumerate(bands):
-            if ArtistScore.selectBy(artist=band).count() == 0:
-                # print '\nArtist: {}'.format(band)
-
-                artist_id, artist_popularity = self.get_artist_info(band)
-                top_tracks = self.get_top_tracks(artist_id) # [{'popularity': 61, 'id': u'7cz70nyRXlCJOE85whEkgU', 'name': u'Flagpole Sitta'},...]
-                score = self.calculate_score(top_tracks)
-
-                # print 'One Hit Wonder Score: {0:.0f}'.format(score)
-
-                ArtistScore(artist=band
-                , track=top_tracks[0]['name']
-                , score=score
-                , artist_id=artist_id
-                , artist_popularity=artist_popularity
-                , top_track_id=top_tracks[0]['id']
-                , popularity_scores=",".join([str(track['popularity']) for track in top_tracks])
-                )
+            # print '\nArtist: {}'.format(band)
+            self.calculate_and_store(self.get_artist(band))
 
         return None
 
 
-    def get_artist_info(self, artist_name):
+    def calculate_and_store(self, artist):
+        if ArtistScore.selectBy(artist_id=artist["id"]).count() == 0: return None
+
+        top_tracks = self.get_top_tracks(artist["id"]) # [{'popularity': 61, 'id': u'7cz70nyRXlCJOE85whEkgU', 'name': u'Flagpole Sitta'},...]
+        score = self.calculate_score(top_tracks)
+
+        # print 'One Hit Wonder Score: {0:.0f}'.format(score)
+
+        ArtistScore(artist=artist["name"]
+        , track=top_tracks[0]['name']
+        , score=score
+        , artist_id=artist["id"]
+        , artist_popularity=artist["popularity"]
+        , top_track_id=top_tracks[0]['id']
+        , popularity_scores=",".join([str(track['popularity']) for track in top_tracks])
+        )
+
+
+    def get_artist(self, artist_name):
         artist_name_url = artist_name.lower().replace(' ','%20')
 
         results = self.query_spotify("/v1/search?q={}&type=artist".format(artist_name_url))
 
         # at some point, confirm that we got exactly 1 result
-        artist = results['artists']['items'][0]
 
-        artist_id = artist['id']
-        artist_popularity = artist['popularity']
+        return results['artists']['items'][0]
 
-        return artist_id, artist_popularity
+    def random_artist(self):
+        base_query = "/v1/search?q=year%3A0000-9999&type=artist&market=" + self.__country_code
+        results = self.query_spotify(base_query)
+        total = results["artists"]["total"]
+
+        results = self.query_spotify("{0}&limit=1&offset={1}".format(base_query, randint(0,total)))["artists"]["items"]
+
+        return results[0] if len(results) > 0 else None
 
     # Gets relevant info about top tracks, sorts by popularity,
     # and removes duplicate tracks before returning.
