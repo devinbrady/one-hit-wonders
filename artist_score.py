@@ -10,3 +10,6 @@ class ArtistScore(SQLObject):
     artist_popularity = IntCol()
     top_track_id      = StringCol()
     popularity_scores = StringCol()
+    random = BoolCol()
+
+    # add source column

@@ -3,7 +3,7 @@ from one_hit_wonders import OneHitWonders
 if __name__ == '__main__':
     ohw = OneHitWonders()
 
-    for _ in range(333):
+    for _ in range(1000):
         artist = ohw.random_artist()
         if artist:
             print "Storing " + artist["name"]
