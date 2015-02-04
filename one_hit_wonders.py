@@ -58,19 +58,21 @@ class OneHitWonders:
         if ArtistScore.selectBy(artist_id=artist["id"]).count() != 0: return None
 
         top_tracks = self.get_top_tracks(artist["id"]) # [{'popularity': 61, 'id': u'7cz70nyRXlCJOE85whEkgU', 'name': u'Flagpole Sitta'},...]
-        score = self.calculate_score(top_tracks)
 
-        # print artist["name"] + ' One Hit Wonder Score: {0:.0f}'.format(score)
+        if top_tracks:
+            score = self.calculate_score(top_tracks)
 
-        artist_score = ArtistScore(artist=artist["name"]
-        , track=top_tracks[0]['name']
-        , score=score
-        , artist_id=artist["id"]
-        , artist_popularity=artist["popularity"]
-        , top_track_id=top_tracks[0]['id']
-        , popularity_scores=",".join([str(track['popularity']) for track in top_tracks])
-        , random=random
-        )
+            # print artist["name"] + ' One Hit Wonder Score: {0:.0f}'.format(score)
+
+            artist_score = ArtistScore(artist=artist["name"]
+            , track=top_tracks[0]['name']
+            , score=score
+            , artist_id=artist["id"]
+            , artist_popularity=artist["popularity"]
+            , top_track_id=top_tracks[0]['id']
+            , popularity_scores=",".join([str(track['popularity']) for track in top_tracks])
+            , random=random
+            )
 
 
     def get_artist(self, artist_name):
@@ -96,16 +98,17 @@ class OneHitWonders:
     def get_top_tracks(self, artist_id):
         results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, self.__country_code))['tracks']
 
-        relevant_info  = lambda track: {'popularity':track['popularity'], 'id':track['id'], 'name':track['name']}
-        tracks_info    = [relevant_info(track) for track in results]
+        if len(results) > 0:
+            relevant_info  = lambda track: {'popularity':track['popularity'], 'id':track['id'], 'name':track['name']}
+            tracks_info    = [relevant_info(track) for track in results]
 
-        sorted_tracks  = sorted(tracks_info, key=lambda x: x['popularity'], reverse=True)
+            sorted_tracks  = sorted(tracks_info, key=lambda x: x['popularity'], reverse=True)
 
-        top_track      = sorted_tracks[0]
-        is_duplicate   = lambda track: top_track['id'] != track['id'] and top_track['name'] in track['name']
-        unique_tracks  = [track for track in sorted_tracks if not is_duplicate(track)]
+            top_track      = sorted_tracks[0]
+            is_duplicate   = lambda track: top_track['id'] != track['id'] and top_track['name'] in track['name']
+            unique_tracks  = [track for track in sorted_tracks if not is_duplicate(track)]
 
-        return unique_tracks
+            return unique_tracks
 
 
     def query_spotify(self, url):
