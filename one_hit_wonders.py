@@ -110,7 +110,7 @@ class OneHitWonders:
             is_duplicate   = lambda track: top_track['id'] != track['id'] and top_track['name'] in track['name']
             unique_tracks  = [track for track in sorted_tracks if not is_duplicate(track)]
 
-            if len(unique_tracks) > 1 return unique_tracks
+            if len(unique_tracks) > 1: return unique_tracks
 
 
     def query_spotify(self, url):
