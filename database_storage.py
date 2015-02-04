@@ -5,11 +5,7 @@ from sqlobject import *
 
 def setup():
     sqlhub.processConnection = connectionForURI(connection_string())
-
-    try:
-        ArtistScore.createTable()
-    except dberrors.OperationalError:
-        print 'ArtistScore table exists.'
+    ArtistScore.createTable(ifNotExists=True)
 
 
 def connection_string():
