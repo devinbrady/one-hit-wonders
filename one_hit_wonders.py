@@ -62,7 +62,7 @@ class OneHitWonders:
 
         # print 'One Hit Wonder Score: {0:.0f}'.format(score)
 
-        ArtistScore(artist=artist["name"]
+        artist_score = ArtistScore(artist=artist["name"]
         , track=top_tracks[0]['name']
         , score=score
         , artist_id=artist["id"]
@@ -70,6 +70,7 @@ class OneHitWonders:
         , top_track_id=top_tracks[0]['id']
         , popularity_scores=",".join([str(track['popularity']) for track in top_tracks])
         )
+        print artist_score
 
 
     def get_artist(self, artist_name):
