@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
 import httplib
-import os
 import datetime
 import json
+import os
 import numpy as np
 import pandas as pd
-from sqlobject import *
+import database_storage
+from random import randint
 from artist_score import ArtistScore
 
 
@@ -28,52 +29,82 @@ class OneHitWonders:
         self.__country_code     = 'US'
         self.__print_all_tracks = False # if True, will print the top tracks for each artist
 
-        self.setup_db()
+        database_storage.setup()
+
 
     def rank_artists(self):
         
         artists = self.load_artists_from_file()
 
-        for i, band in enumerate(artists):
-            if ArtistScore.selectBy(artist=band).count() == 0:
-                print '\nArtist: {}'.format(band)
-
-                artist_id = self.get_artist_id(band)
-                top_tracks = self.get_top_tracks(artist_id)
-                score, top_track_name = self.calculate_score(top_tracks)
-
-                print 'One Hit Wonder Score: {0:.0f}'.format(score)
-
-                ArtistScore(artist=band, track=top_track_name, score=score)
+        for band in artists:
+            self.calculate_and_store(self.get_artist(band))
 
         return None
 
 
+    def calculate_and_store(self, artist, random=True):
+        if not artist or ArtistScore.selectBy(artist_id=artist["id"]).count() != 0: return None
+
+        top_tracks = self.get_top_tracks(artist["id"]) # [{'popularity': 61, 'id': u'7cz70nyRXlCJOE85whEkgU', 'name': u'Flagpole Sitta'},...]
+
+        if top_tracks:
+            score = self.calculate_score(top_tracks)
+
+            # print artist["name"] + ' One Hit Wonder Score: {0:.0f}'.format(score)
+
+            # UnicodeEncodeError: 'ascii' codec can't encode character u'\xf3' in position 5: ordinal not in range(128)
+
+            artist_score = ArtistScore(artist=artist["name"]
+            , track=top_tracks[0]['name']
+            , score=score
+            , artist_id=artist["id"]
+            , artist_popularity=artist["popularity"]
+            , top_track_id=top_tracks[0]['id']
+            , popularity_scores=",".join([str(track['popularity']) for track in top_tracks])
+            , random=random
+            )
+
+
     def load_artists_from_file(self):
-        wikipedia = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/One Hit Wonders (sample) - Sheet1.csv')
+        wikipedia = pd.read_csv(os.path.dirname(os.path.realpath(__file__)) + '/One Hit Wonders (Wikipedia).csv')
         artists = wikipedia['Artist']
 
         return artists
 
 
-    def get_artist_id(self, artist_name):
+    def get_artist(self, artist_name):
         artist_name_url = artist_name.lower().replace(' ','%20')
 
         results = self.query_spotify("/v1/search?q={}&type=artist".format(artist_name_url))
 
-        if results['artists']['total'] == 0:
-            print 'WARNING: zero search results for: {}'.format(artist_name)
-            artist_id = 0
-        else: 
-            artist_id = results['artists']['items'][0]['id']
-
-        return artist_id
+        return results['artists']['items'][0] if results['artists']['total'] > 0 else None
 
 
+    def random_artist(self):
+        base_query = "/v1/search?q=year%3A0000-9999&type=artist&market=" + self.__country_code
+        results = self.query_spotify(base_query)
+        total = results["artists"]["total"]
+
+        results = self.query_spotify("{0}&limit=1&offset={1}".format(base_query, randint(0,total)))["artists"]["items"]
+
+        return results[0] if len(results) > 0 else None
+
+    # Gets relevant info about top tracks, sorts by popularity,
+    # and removes duplicate tracks before returning.
     def get_top_tracks(self, artist_id):
-        results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, self.__country_code))
+        results = self.query_spotify("/v1/artists/{0}/top-tracks?country={1}".format(artist_id, self.__country_code))['tracks']
 
-        return results['tracks']
+        if len(results) > 1:
+            relevant_info  = lambda track: {'popularity':track['popularity'], 'id':track['id'], 'name':track['name']}
+            tracks_info    = [relevant_info(track) for track in results]
+
+            sorted_tracks  = sorted(tracks_info, key=lambda x: x['popularity'], reverse=True)
+
+            top_track      = sorted_tracks[0]
+            is_duplicate   = lambda track: top_track['id'] != track['id'] and top_track['name'] in track['name']
+            unique_tracks  = [track for track in sorted_tracks if not is_duplicate(track)]
+
+            if len(unique_tracks) > 1: return unique_tracks
 
 
     def query_spotify(self, url):
@@ -92,66 +123,19 @@ class OneHitWonders:
 
 
     def calculate_score(self, top_tracks):
-        sorted_tracks = sorted(top_tracks, key=lambda x: x['popularity'], reverse=True)
-
-        top_track_name = sorted_tracks[0]['name']
-
-        top_tracks_popularity = [sorted_tracks[0]['popularity']]
-
-        for i, track in enumerate(sorted_tracks):
-            if self.__print_all_tracks:
-                print '{0}. ({1}) {2}'.format(i+1, track['popularity'], track['name'])
-
-            if i != 0:
-                if top_track_name not in track['name']:
-                    top_tracks_popularity.append(track['popularity'])
-                elif self.__print_all_tracks:
-                    print '^^^^^^^ duplicate of top hit, will exclude'
-
-        if not self.__print_all_tracks:
-            print 'Top Hit: {}'.format(sorted_tracks[0]['name'])
-
-        score = top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
-
-        return score, top_track_name
+        top_tracks_popularity = [track['popularity'] for track in top_tracks]
+        return top_tracks_popularity[0] - np.mean(top_tracks_popularity[1:len(top_tracks_popularity)])
 
 
-    def setup_db(self):
-        db_filename = os.path.abspath('ohw.db')
-        if os.path.exists(db_filename):
-            os.unlink(db_filename)
-        connection_string = 'sqlite:' + db_filename
-        connection = connectionForURI(connection_string)
-        sqlhub.processConnection = connection
-
-        try:
-            ArtistScore.createTable()
-        except dberrors.OperationalError:
-            print 'ArtistScore table exists.'
-
-
-    def save_top_ohws(self, prefix='output'):
-        output_dir = os.path.dirname(os.path.realpath(__file__)) + '/csv'
-
-        # if output directory doesn't exist, make it
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-
-        output_file = '{0}/{1} {2}.csv'.format(output_dir, prefix, datetime.datetime.now().strftime("%Y-%m-%d %H,%M,%S"))
-        f = open(output_file, 'w')
-
+    def get_top_ohws(self):
         artist_scores = ArtistScore.select('all', orderBy='score desc', limit=10)
 
         for artist_score in artist_scores:
-            output = '{0},{1},{2}'.format(artist_score.artist, artist_score.track, artist_score.score)
-            # print output
-            f.write('{0}\n'.format(output))
-
-        print 'Top One Hit Wonders saved to: {}'.format(output_file)
+            print '{0},{1},{2}'.format(artist_score.artist, artist_score.track, artist_score.score)
 
         return None
 
 if __name__ == '__main__':
     ohw = OneHitWonders()
     ohw.rank_artists()
-    ohw.save_top_ohws()
+    ohw.get_top_ohws()
